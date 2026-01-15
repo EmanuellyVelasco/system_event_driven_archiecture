@@ -9,6 +9,12 @@ const prisma = new PrismaClient();
 
 export async function startFetcherWorker(requestId: string) {
   console.log(`[Fetcher] Iniciando ID: ${requestId}`);
+
+  //Simulação de falha (30%)
+  if (Math.random() < 0.30) {
+    console.error('[Fetcher] Falha na API externa de imagens.');
+    throw new Error('ImageError');
+  }
   
   // Atualiza Status
   await prisma.request.update({ where: { id: requestId }, data: { status: 'fetching' } });

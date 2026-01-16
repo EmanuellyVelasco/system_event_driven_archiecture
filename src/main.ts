@@ -3,6 +3,7 @@ import { connectRedis, subscriber } from './config/redis';
 import { startFetcherWorker } from './workers/1-fetcher';
 import { startPdfWorker } from './workers/2-pdf';
 import { startEmailWorker } from './workers/3-email';
+import { startDLQWorker } from './workers/4-dlq';
 
 async function bootstrap() {
   await connectRedis();
@@ -23,6 +24,10 @@ async function bootstrap() {
   await subscriber.subscribe('process:sending', (requestId) => {
     startEmailWorker(requestId);
   });
+
+  await subscriber.subscribe('process:failed', (requestId) => {
+    startDLQWorker(requestId);
+  })
 
   console.log("Workers escutando no Redis...");
 

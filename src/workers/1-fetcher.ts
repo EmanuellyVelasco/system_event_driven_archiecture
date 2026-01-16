@@ -11,31 +11,40 @@ export async function startFetcherWorker(requestId: string) {
   console.log(`[Fetcher] Iniciando ID: ${requestId}`);
 
   //Simulação de falha (30%)
-  if (Math.random() < 0.30) {
-    console.error('[Fetcher] Falha na API externa de imagens.');
-    throw new Error('ImageError');
-  }
+  try {
+    if (Math.random() < 0.30) {
+      throw new Error('ImageError');
+    }
+
+    // Atualiza Status
+    await prisma.request.update({ where: { id: requestId }, data: { status: 'fetching' } });
+
+    // Cria diretório
+    const dir = path.join(__dirname, `../../storage/${requestId}`);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    // 1. Gera Texto
+    const textContent = faker.lorem.paragraphs(3);
+    fs.writeFileSync(path.join(dir, 'content.txt'), textContent);
+
+    // 2. Baixa 10 Imagens
+    for (let i = 0; i < 10; i++) {
+      const response = await axios.get('https://picsum.photos/200', { responseType: 'arraybuffer' });
+      fs.writeFileSync(path.join(dir, `image_${i}.jpg`), response.data);
+    }
+
+    console.log(`[Fetcher] Finalizado. Publicando para gen_pdf.`);
+
+    // Muda status para próximo passo e avisa
+    await prisma.request.update({ where: { id: requestId }, data: { status: 'gen_pdf' } });
+    await publisher.publish('process:gen_pdf', requestId);
   
-  // Atualiza Status
-  await prisma.request.update({ where: { id: requestId }, data: { status: 'fetching' } });
-
-  // Cria diretório
-  const dir = path.join(__dirname, `../../storage/${requestId}`);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-
-  // 1. Gera Texto
-  const textContent = faker.lorem.paragraphs(3);
-  fs.writeFileSync(path.join(dir, 'content.txt'), textContent);
-
-  // 2. Baixa 10 Imagens
-  for (let i = 0; i < 10; i++) {
-    const response = await axios.get('https://picsum.photos/200', { responseType: 'arraybuffer' });
-    fs.writeFileSync(path.join(dir, `image_${i}.jpg`), response.data);
+  } catch (error) { 
+      console.error('[Fetcher] Falha na API externa de imagens.', error);
   }
 
-  console.log(`[Fetcher] Finalizado. Publicando para gen_pdf.`);
-  
-  // Muda status para próximo passo e avisa
-  await prisma.request.update({ where: { id: requestId }, data: { status: 'gen_pdf' } });
-  await publisher.publish('process:gen_pdf', requestId);
+    //Muda o status para failed
+    await prisma.request.update({ where: { id: requestId }, data: { status: 'failed' } });
+    await publisher.publish('process:failed', requestId);
+
 }

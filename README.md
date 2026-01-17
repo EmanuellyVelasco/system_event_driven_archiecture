@@ -6,7 +6,7 @@ Implementamos um mecanismo de tolerância a falhas para evitar que erros de proc
 
 A API externa de imagens pode apresentar instabilidade, ocasionando falhas em parte das requisições. Para simular esse cenário, o worker (`Fetcher Worker`) lança erros de forma controlada em aproximadamente **30% das execuções**.
 
-### Fluxo de Processamento
+## Fluxo de Processamento
 
 ### Fluxo de Sucesso
 
